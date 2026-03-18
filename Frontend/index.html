@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css">
+  <title>Sports Rental</title>
+  <script src="script.js" type="text/javascript" defer></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Sports Rental</h1>
+        <p>izposoja športne opreme · demo sistem</p>
+      </div>
+
+      <div class="userbox">
+        <div id="userPill" class="pill">Ni prijave</div>
+        <button class="btn primary" onclick="openLogin()">Login</button>
+        <button class="btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h2>Oprema</h2>
+        <div class="controls">
+          <select id="catFilter" onchange="loadItems()">
+            <option value="">Vse kategorije</option>
+            <option value="1">Kampiranje</option>
+            <option value="2">Tek</option>
+            <option value="3">Fitness</option>
+            <option value="5">Zimska oprema</option>
+            <option value="6">Pohodništvo</option>
+            <option value="7">Otroška oprema</option>
+          </select>
+        </div>
+
+        <div id="items" class="cards"></div>
+      </div>
+
+      <div class="panel rentals">
+        <h2>Moje izposoje</h2>
+        <div class="controls">
+          <button class="btn" onclick="loadRentals()">Osveži</button>
+        </div>
+        <div id="rentals"></div>
+        <div class="small">* Approve/Return sta vidna samo za admina.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN MODAL -->
+  <div id="modalWrap" class="modalWrap" onclick="closeLogin(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Login</h3>
+      <div class="field">
+        <label>Email</label>
+        <input id="email" placeholder="admin@sport.si ali tina@sport.si" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="test123" />
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="closeLogin()">Cancel</button>
+        <button class="btn primary" onclick="login()">Login</button>
+      </div>
+      <div class="small">Namig: v tvoji bazi je geslo trenutno navaden tekst (npr. test123).</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+</body>
+</html>
