@@ -2,20 +2,22 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const healthRouter = require("./routes/health");
 const categoriesRouter = require("./routes/categories");
 const itemsRouter = require("./routes/items");
 const rentalsRouter = require("./routes/rentals");
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
+const authRouter = require("./routes/auth");
 
 // API prefix (clean)
 const API_PREFIX = "/api";
 
+app.use(`${API_PREFIX}`, authRouter);
 app.use(`${API_PREFIX}/health`, healthRouter);
 app.use(`${API_PREFIX}/categories`, categoriesRouter);
 app.use(`${API_PREFIX}/items`, itemsRouter);

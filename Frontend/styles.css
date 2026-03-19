@@ -168,18 +168,18 @@ select option {
 }
 
 @media (max-width: 900px) {
-  .cards {
+  .card {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 560px) {
-  .csrds {
+  .card{
     grid-template-columns: 1fr;
   }
 }
 
-.item-card {
+.card{
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.05); /* Slightly softer border  */
   border-radius: 14px; 
@@ -195,7 +195,7 @@ select option {
 }
 
 /* NEW: Hover state to make it look nicer when interacting  */
-.item-card:hover {
+.card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
   border-color: rgba(78, 161, 255, 0.3); /* Subtle blue tint on hover  */
@@ -230,6 +230,7 @@ select option {
 .badge.ok {
   color: #1f7a4d;
   background: rgba(51, 209, 122, 0.15);
+  text-align: center
 }
 
 .badge.warn {
