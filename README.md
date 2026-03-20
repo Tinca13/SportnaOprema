@@ -23,5 +23,5 @@
 
 1. **Clone the repository**:
    ```bash
-   git clone [https://github.com/tinca13/sports-rental.git](https://github.com/tinca13/sports-rental.git)
+   git clone [https://github.com/tinca13/sportnaOprema.git](https://github.com/tinca13/sportnaOprema.git)
    cd sports-rental
