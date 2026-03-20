@@ -243,6 +243,10 @@ select option {
   background: rgba(255, 77, 79, 0.15);
 }
 
+.badge.requested { background: #fff3cd; color: #856404; } /* Rumena */
+.badge.approved { background: #d4edda; color: #155724; }  /* Zelena */
+.badge.returned { background: #e2e3e5; color: #383d41; }  /* Siva */
+
 /* DIVIDER */
 .hr {
   height: 1px;

@@ -1,7 +1,8 @@
 const API = "http://localhost:3000/api";
 let currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+let cart = []; // Seznam izbranih artiklov
 
-/* ===== 1. POMOŽNE FUNKCIJE (UTIL & UI) ===== */
+/* ===== 1. UI IN OSVEŽEVANJE ===== */
 
 function setUserPill() {
     const el = document.getElementById("userPill");
@@ -11,7 +12,7 @@ function setUserPill() {
     if (!el) return;
 
     if (currentUser) {
-        el.innerText = currentUser.email;
+        el.innerText = `${currentUser.email} (${currentUser.role})`;
         if (loginBtn) loginBtn.style.display = "none";
         if (logoutBtn) logoutBtn.style.display = "block";
     } else {
@@ -29,35 +30,27 @@ function toast(msg) {
     setTimeout(() => { el.style.display = "none"; }, 3000);
 }
 
-/* ===== 2. MODAL LOGIKA (LOGIN/LOGOUT) ===== */
+/* ===== 2. PRIJAVA IN ODJAVA ===== */
 
 function openLogin() {
-     const modal = document.getElementById("modalWrap");
-    if (modal) modal.style.display = "flex";
+    document.getElementById("modalWrap").style.display = "flex";
 }
 
 function closeLogin(e) {
-    // Zapre modal, če kliknemo gumb ali ozadje (ne pa vsebine modala)
     if (e && e.target !== document.getElementById("modalWrap")) return;
-    const modal = document.getElementById("modalWrap");
-    if (modal) modal.style.display = "none";
+    document.getElementById("modalWrap").style.display = "none";
 }
 
 async function login() {
-    const emailEl = document.getElementById("email");
-    const passwordEl = document.getElementById("password");
-    // Preveri, če ti vrstici dejansko dobita vrednost:
-    console.log("Email vnos:", emailEl.value); 
-    console.log("Geslo vnos:", passwordEl.value);
-    if (!emailEl || !passwordEl) return;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
     try {
         const res = await fetch(`${API}/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailEl.value, password: passwordEl.value }),
+            body: JSON.stringify({ email, password }),
         });
-
         const data = await res.json();
 
         if (res.ok) {
@@ -65,90 +58,266 @@ async function login() {
             currentUser = data.user;
             setUserPill();
             closeLogin();
-            toast("Uspešno ste se prijavili!");
-            if (typeof loadRentals === "function") loadRentals();
+            loadItems();   // Ponovno naloži artikle, da se omogočijo gumbi
+            loadRentals(); // Naloži izposoje na desni
+            toast("Uspešna prijava!");
         } else {
-            toast(data.error || "Napačni podatki za prijavo");
+            toast(data.error || "Napaka pri prijavi");
         }
     } catch (err) {
-        console.error("Login error:", err);
-        toast("Napaka pri povezavi s strežnikom.");
+        toast("Napaka pri povezavi.");
     }
 }
 
 function logout() {
     localStorage.removeItem("currentUser");
     currentUser = null;
+    cart = [];
     setUserPill();
+    loadItems(); // Gumbi se onemogočijo
+    document.getElementById("rentals").innerHTML = "";
+    document.getElementById("checkoutSection").style.display = "none";
     toast("Odjavljeni ste.");
-    const rentalContainer = document.getElementById("rentals");
-    if (rentalContainer) rentalContainer.innerHTML = "";
 }
 
-/* ===== 3. PRIKAZ IN PODATKI (RENDER & DATA) ===== */
+/* ===== 3. ARTIKLI IN IZPOSOJA ===== */
 
 function renderItems(items) {
     const container = document.getElementById("items");
     if (!container) return;
-
     container.innerHTML = "";
 
-    if (!items || items.length === 0) {
-        container.innerHTML = "<p>Ni opreme, ki bi ustrezala iskanju.</p>";
-        return;
-    }
-
     items.forEach(item => {
-        const isAvailable = item.quantity_available > 0;
         const div = document.createElement("div");
         div.className = "card";
+
+        const hasStock = item.quantity_available > 0;
+        const isLoggedIn = currentUser !== null;
+
         div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display:flex; justify-content:space-between;">
                 <b class="title">${item.name}</b>
-                <span class="badge ${isAvailable ? 'ok' : 'bad'}">
-                    ${isAvailable ? 'Na zalogi: ' + item.quantity_available : 'Razprodano'}
-                </span>
             </div>
-            <span class="meta">(${item.category_name})</span>
+            <span class="category">(${item.category_name})</span>
             <div class="hr"></div>
             <div class="price">${item.price_per_day} € / dan</div>
+            <span class="badge ${hasStock ? 'ok' : 'bad'}">
+                    ${hasStock ? 'Zaloga: ' + item.quantity_available : 'Ni zaloge'}
+            </span>
+            <button 
+                class="btn ${isLoggedIn && hasStock ? 'primary' : 'btn-disabled'}" 
+                onclick="addToCart(${item.id}, '${item.name.replace(/'/g, "\\'")}')"
+                ${!isLoggedIn || !hasStock ? 'disabled' : ''}
+                style="width: 100%; margin-top: 10px;">
+                ${isLoggedIn ? (hasStock ? 'Izposodi si' : 'Ni zaloge') : 'Prijava potrebna'}
+            </button>
         `;
         container.appendChild(div);
     });
 }
 
 async function loadItems() {
-    const catFilter = document.getElementById("catFilter");
-    const searchInput = document.getElementById("search");
-    const container = document.getElementById("items");
-
     try {
-        const params = new URLSearchParams();
-        if (catFilter && catFilter.value) params.append("category_id", catFilter.value.trim());
-        if (searchInput && searchInput.value) params.append("search", searchInput.value.trim());
-
-        const res = await fetch(`${API}/items?${params.toString()}`);
-        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-
+        const catFilter = document.getElementById("catFilter").value;
+        const res = await fetch(`${API}/items${catFilter ? '?category_id=' + catFilter : ''}`);
         const items = await res.json();
         renderItems(items);
     } catch (err) {
-        console.error("Fetch error:", err);
-        if (container) container.innerHTML = "Napaka pri nalaganju podatkov.";
+        console.error("Napaka pri artiklih:", err);
     }
 }
 
-/* ===== 4. DOGODKI (EVENTS) ===== */
+function addToCart(id, name) {
+    const existing = cart.find(i => i.item_id === id);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ item_id: id, name: name, quantity: 1 });
+    }
+    
+    document.getElementById("checkoutSection").style.display = "block";
+    const cartList = document.getElementById("cartList");
+    if (cartList) {
+        cartList.innerHTML = cart.map(i => `<li>${i.name} (${i.quantity}x)</li>`).join("");
+    }
+    toast("Dodano v izbor.");
+}
+
+async function checkout() {
+    if (!currentUser || !currentUser.id) {
+        toast("Niste prijavljeni!");
+        return;
+    }
+    if (cart.length === 0) {
+        toast("Košarica je prazna!");
+        return;
+    }
+
+    // Generiranje datumov v formatu YYYY-MM-DD
+    const now = new Date();
+    const date_from = now.toISOString().split('T')[0]; // Danes
+    
+    const later = new Date();
+    later.setDate(now.getDate() + 7); // Vrnitev čez 7 dni
+    const date_to = later.toISOString().split('T')[0];
+
+    const payload = {
+        user_id: currentUser.id,
+        date_from: date_from,
+        date_to: date_to,
+        items: cart.map(i => ({ 
+            item_id: i.item_id, 
+            quantity: i.quantity 
+        }))
+    };
+
+    console.log("Pošiljam podatke za izposojo:", payload);
+
+    try {
+        const res = await fetch(`${API}/rentals`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            toast("Izposoja uspešna!");
+            cart = [];
+            document.getElementById("checkoutSection").style.display = "none";
+            loadItems();   // Osveži zalogo na ekranu
+            loadRentals(); // Osveži seznam na desni
+        } else {
+            toast(data.message || "Napaka pri izposoji.");
+        }
+    } catch (e) {
+        console.error("Napaka:", e);
+        toast("Napaka pri povezavi s strežnikom.");
+    }
+}
+
+/* ===== 4. SEZNAM IZPOSOJ (DESNA STRAN) ===== */
+
+async function loadRentals() {
+    const container = document.getElementById("rentals");
+    // POPRAVEK: Izberemo h2 znotraj panela rentals
+    const titleEl = document.querySelector(".panel.rentals h2"); 
+    
+    if (!currentUser || !container) return;
+
+    // Posodobimo naslov
+    if (titleEl) {
+        titleEl.innerText = currentUser.role === 'admin' ? "Upravljanje izposoj (Admin)" : "Moje izposoje";
+    }
+   
+    try {
+        // Pošljemo user_id IN role, da backend ve, kaj vrniti
+        const res = await fetch(`${API}/rentals/my?user_id=${currentUser.id}&role=${currentUser.role}`);
+        const rentals = await res.json();
+  
+        container.innerHTML = rentals.map(r => {
+            let buttons = "";
+            
+            // Logika za gumbe - samo za ADMINA
+            if (currentUser.role === 'admin') {
+                if (r.status === 'REQUESTED') {
+                    buttons = `<button class="btn success small" onclick="approveRental(${r.id})" style="width:100%; margin-top:8px;">Odobri izposojo</button>`;
+                } else if (r.status === 'APPROVED') {
+                    buttons = `<button class="btn primary small" onclick="returnRental(${r.id})" style="width:100%; margin-top:8px;">Vrni opremo</button>`;
+                }
+            }
+
+            return `
+                <div class="rental-card" style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #fff;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <b>Izposoja #${r.id}</b>
+                        <span class="badge ${r.status.toLowerCase()}">${r.status}</span>
+                    </div>
+                    <div style="font-size: 0.8em; color: #666; margin: 4px 0;">
+                        Termin: ${r.date_from} do ${r.date_to}
+                    </div>
+                    <ul style="margin: 5px 0; padding-left: 18px; font-size: 0.9em;">
+                        ${r.items.map(it => `<li>${it.name} (${it.quantity}x)</li>`).join("")}
+                    </ul>
+                    ${buttons}
+                </div>
+            `;
+        }).join("");
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = "Napaka pri nalaganju podatkov.";
+    }
+}
+
+// Dodaj še funkcijo za odobritev, če je še nimaš
+async function approveRental(id) {
+    if (!confirm("Želiš odobriti to izposojo? Zaloga se bo zmanjšala.")) return;
+    try {
+        const res = await fetch(`${API}/rentals/${id}/approve`, { method: "POST" });
+        if (res.ok) {
+            toast("Izposoja odobrena!");
+            loadRentals();
+            loadItems(); // Osveži zalogo na karticah
+        } else {
+            const err = await res.json();
+            alert(err.message);
+        }
+    } catch (e) {
+        toast("Napaka pri povezavi.");
+    }
+}
+
+/* ===== 5. ZAČETEK ===== */
 
 window.addEventListener("DOMContentLoaded", () => {
-    console.log("INIT OK");
     setUserPill();
     loadItems();
+    if (currentUser) loadRentals();
 
-    // Poslušalci za iskanje in filtriranje
     const catFilter = document.getElementById("catFilter");
-    const searchInput = document.getElementById("search");
-
     if (catFilter) catFilter.addEventListener("change", loadItems);
-    if (searchInput) searchInput.addEventListener("input", loadItems);
 });
+
+/* ===== 6. NAPOLNI KOŠARICO ===== */
+function addToCart(id, name) {
+    // 1. Preveri, če je artikel že v košarici
+    const existing = cart.find(i => i.item_id === id);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ item_id: id, name: name, quantity: 1 });
+    }
+    
+    // 2. Prikaži sekcijo košarice
+    document.getElementById("checkoutSection").style.display = "block";
+    
+    // 3. Osveži seznam v košarici
+    const cartList = document.getElementById("cartList");
+    if (cartList) {
+        cartList.innerHTML = cart.map(i => `<li>${i.name} (${i.quantity}x)</li>`).join("");
+    }
+    toast("Dodano v izbor.");
+}
+
+/* ===== 6. VRNI IZDELKE ===== */
+async function returnRental(id) {
+    if (!confirm("Označi opremo kot vrnjeno? (Zaloga se bo povečala)")) return;
+    try {
+        const res = await fetch(`${API}/rentals/${id}/return`, { 
+            method: "POST" 
+        });
+        
+        if (res.ok) {
+            toast("Oprema uspešno vrnjena!");
+            loadRentals();
+            loadItems(); // Osveži zalogo na karticah
+        } else {
+            const err = await res.json();
+            alert(err.message || "Napaka pri vračilu.");
+        }
+    } catch (e) {
+        console.error(e);
+        toast("Napaka pri povezavi.");
+    }
+}
