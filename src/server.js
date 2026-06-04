@@ -1,4 +1,4 @@
-// src/server.js
+//zaženi server node src/server.js
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -22,6 +22,11 @@ app.use(`${API_PREFIX}/health`, healthRouter);
 app.use(`${API_PREFIX}/categories`, categoriesRouter);
 app.use(`${API_PREFIX}/items`, itemsRouter);
 app.use(`${API_PREFIX}/rentals`, rentalsRouter);
+
+//TEST
+app.get("/test", (req, res) => {
+  res.send("TEST DELA");
+});
 
 // 404 handler
 app.use((req, res) => {
